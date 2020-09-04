@@ -43,15 +43,11 @@ with open('data/p1_data.pkl', 'rb') as file:
 #   gnss: StampedData object with the GNSS data.
 #     data: The actual data
 #     t: Timestamps in ms.
-#   lidar: StampedData object with the LIDAR data (positions only).
-#     data: The actual data
-#     t: Timestamps in ms.
 ################################################################################################
 gt = data['gt']
 imu_f = data['imu_f']
 imu_w = data['imu_w']
 gnss = data['gnss']
-lidar = data['lidar']
 
 ################################################################################################
 # Let's plot the ground truth trajectory to see what it looks like. When you're testing your
@@ -67,27 +63,6 @@ lidar = data['lidar']
 # ax.set_zlim(-1, 5)
 # plt.show()
 
-################################################################################################
-# Remember that our LIDAR data is actually just a set of positions estimated from a separate
-# scan-matching system, so we can just insert it into our solver as another position
-# measurement, just as we do for GNSS. However, the LIDAR frame is not the same as the frame
-# shared by the IMU and the GNSS. To remedy this, we transform the LIDAR data to the IMU frame
-# using our known extrinsic calibration rotation matrix C_li and translation vector t_li_i.
-#
-# THIS IS THE CODE YOU WILL MODIFY FOR PART 2 OF THE ASSIGNMENT.
-################################################################################################
-# This is the correct calibration rotation matrix, corresponding to an euler rotation of 0.05, 0.05, .1.
-C_li = np.array([
-    [ 0.99376, -0.09722,  0.05466],
-    [ 0.09971,  0.99401, -0.04475],
-    [-0.04998,  0.04992,  0.9975 ]
-])
-
-t_li_i = np.array([0.5, 0.1, 0.5])
-
-lidar.data = (C_li @ lidar.data.T).T + t_li_i
-
-
 #### 2. Constants ##############################################################################
 
 ################################################################################################
@@ -98,7 +73,6 @@ lidar.data = (C_li @ lidar.data.T).T + t_li_i
 var_imu_f = 0.01
 var_imu_w = 0.01
 var_gnss = 0.1
-var_lidar = 35
 gravity = 9.81
 
 ################################################################################################
@@ -129,7 +103,7 @@ p_cov[0] = np.eye(9)  # covariance of estimate
 #### 4. Measurement Update #####################################################################
 
 ################################################################################################
-# Since we'll need a measurement update for both the GNSS and the LIDAR data, let's make
+# Since we'll need a measurement update for the GNSS data, let's make
 # a function for it.
 ################################################################################################
 def measurement_update(sensor_var, p_cov_check, y_k, p_check, v_check, q_check):
@@ -179,15 +153,11 @@ for k in range(1, imu_f.data.shape[0]):  # start at 1 b/c we have initial predic
     Q = (delta_t ** 2) * Q #Integration acceleration to obstain Position
     p_cov[k] = F.dot(p_cov[k - 1]).dot(F.T) + l_jac.dot(Q).dot(l_jac.T)
 
-    # 3. Check availability of GNSS and LIDAR measurements
+    # 3. Check availability of GNSS
     for i in range(len(gnss.t)):
         if abs(gnss.t[i] - imu_f.t[k]) < 0.01:
             p_est[k], v_est[k], q_est[k], p_cov[k] = measurement_update(var_gnss, p_cov[k],
                                                     gnss.data[i], p_est[k], v_est[k], q_est[k])
-    for i in range(len(lidar.t)):
-        if abs(lidar.t[i] - imu_f.t[k]) < 0.01:
-            p_est[k], v_est[k], q_est[k], p_cov[k] = measurement_update(var_lidar, p_cov[k],
-                                                    lidar.data[i], p_est[k], v_est[k], q_est[k])
 
 
 #### 6. Results and Analysis ###################################################################
