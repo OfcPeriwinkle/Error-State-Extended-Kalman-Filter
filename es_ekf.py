@@ -44,10 +44,13 @@ with open('data/p1_data.pkl', 'rb') as file:
 #     data: The actual data
 #     t: Timestamps in ms.
 ################################################################################################
-gt = data['gt']
-imu_f = data['imu_f']
-imu_w = data['imu_w']
-gnss = data['gnss']
+gt = data['gt'] # Ground truth
+imu_f = data['imu_f'] # Forcible acceleration data
+imu_w = data['imu_w'] # Rotational gyroscope data
+gnss = data['gnss'] # Data should have format [[lat long alt]...]
+
+print(f"Position data in intertial frame: {gt.p}")
+print(f"GNSS Position Data: {gnss.data}")
 
 ################################################################################################
 # Let's plot the ground truth trajectory to see what it looks like. When you're testing your
@@ -153,6 +156,7 @@ for k in range(1, imu_f.data.shape[0]):  # start at 1 b/c we have initial predic
     Q = (delta_t ** 2) * Q #Integration acceleration to obstain Position
     p_cov[k] = F.dot(p_cov[k - 1]).dot(F.T) + l_jac.dot(Q).dot(l_jac.T)
 
+    # TODO: Change this part of the funciton so that it runs off of GPS reads, not some bs comparison
     # 3. Check availability of GNSS
     for i in range(len(gnss.t)):
         if abs(gnss.t[i] - imu_f.t[k]) < 0.01:
